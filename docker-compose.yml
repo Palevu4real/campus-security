@@ -1,0 +1,34 @@
+﻿
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: campus_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: campus_user
+      POSTGRES_PASSWORD: campus_pass
+      POSTGRES_DB: campus_security
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus_user -d campus_security"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: campus_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  pg_data:
+  redis_data:
+

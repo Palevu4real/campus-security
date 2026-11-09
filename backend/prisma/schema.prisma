@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  fullName        String
+  role            Role      @default(STUDENT)
+  department      String?
+  matricNumber    String?   @unique
+  staffId         String?   @unique
+  isActive        Boolean   @default(true)
+  isLocked        Boolean   @default(false)
+  lockedAt        DateTime?
+  lockedReason    String?
+  failedAttempts  Int       @default(0)
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  twoFactorEnabled Boolean  @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sessions         Session[]
+  activityLogs     ActivityLog[]
+  resultsUploaded  Result[]      @relation("UploadedBy")
+  alerts           Alert[]       @relation("AlertTarget")
+
+  @@index([email])
+  @@index([role])
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Session {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String    @unique
+  ipAddress    String
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model ActivityLog {
+  id        String    @id @default(uuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  action    String
+  severity  Severity  @default(INFO)
+  ipAddress String?
+  userAgent String?
+  path      String?
+  method    String?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model Alert {
+  id           String    @id @default(uuid())
+  type         String
+  severity     Severity  @default(WARNING)
+  title        String
+  message      String
+  targetUserId String?
+  targetUser   User?     @relation("AlertTarget", fields: [targetUserId], references: [id])
+  ipAddress    String?
+  metadata     Json?
+  isResolved   Boolean   @default(false)
+  resolvedBy   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([type])
+  @@index([severity])
+  @@index([isResolved])
+  @@index([createdAt])
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       String
+  department  String
+  creditUnits Int
+  lecturerId  String?
+  createdAt   DateTime @default(now())
+
+  results     Result[]
+}
+
+model Result {
+  id            String    @id @default(uuid())
+  studentId     String
+  courseId      String
+  course        Course    @relation(fields: [courseId], references: [id])
+  score         Int
+  grade         String
+  session       String
+  semester      String
+  uploadedBy    String
+  uploader      User      @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  isLocked      Boolean   @default(false)
+  lockedAt      DateTime?
+  integrityHash String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([studentId, courseId, session, semester])
+  @@index([studentId])
+  @@index([courseId])
+}
+
+model ThreatSignature {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  pattern   String
+  category  String
+  severity  Severity  @default(WARNING)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
